@@ -7,6 +7,7 @@ from datetime import datetime
 CADENSE = True  # False
 SPORT = 'Biking'
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+VERSION = 0.1
 
 
 # Polar sets the time as of it was in GMT, but its not,
@@ -132,8 +133,8 @@ def createTcx(basename):
     elem.text = 'HRM-GPX to TCX'
     build = ElementTree.SubElement(author, 'Build')
     version = ElementTree.SubElement(build, 'Version')
-    version_data = {'VersionMajor': '1', 'VersionMinor': '0',
-                    'BuildMajor': '1', 'BuildMinor': '0'}
+    version_data = {'VersionMajor': '0', 'VersionMinor': '1',
+                    'BuildMajor': '0', 'BuildMinor': '1'}
     createElementSeries(version, version_data)
     # @TODO Build timestamp or something
     build_data = {'Type': 'Internal', 'Time': start_time,
