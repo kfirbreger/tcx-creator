@@ -4,3 +4,5 @@ The Polar RCX 5 export creates a GPX and an [HRM](http://www.polar.fi/files/Pola
 
 This python script searches for all gpx files in the folder that do not have a likely named tcx file. All the files found will be converted to tcx if an hrm file is found.
 The assumption is that for file 123.gpx there is an 123.hrm file (That is how polar exports it) and it will create an 123.tcx file
+
+Requires python 2.7
