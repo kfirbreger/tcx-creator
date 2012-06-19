@@ -4,10 +4,9 @@ import xml.etree.ElementTree as ElementTree
 from datetime import datetime
 
 # Global settings
-CADENSE = True  # False
 SPORT = 'Biking'
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
-VERSION = 0.1
+VERSION = 0.2
 
 
 # Polar sets the time as of it was in GMT, but its not,
@@ -35,8 +34,9 @@ def createElementSeries(parent, data):
 
 
 def createTcx(basename):
+    distance = 0.0 # Distance counter
     # Creates a single tracking point
-    def createTcxEntry(gpx, hrm_data):
+    def createTcxEntry(gpx, hrm_data, distance):
         data = list(gpx)
         # Creating a trackpoint
         tp = ElementTree.SubElement(track, 'Trackpoint')
@@ -44,7 +44,7 @@ def createTcx(basename):
         e = ElementTree.SubElement(tp, 'Time')
         # Converting string to dattime object, changing to actual utc time
         # and converting back
-        e.text = datetime.strftime(datetime.strptime(data[0].text, TIME_FORMAT) + time_offset, TIME_FORMAT)
+        e.text = datetime.strftime(datetime.strptime(data[0].text, TIME_FORMAT) - time_offset, TIME_FORMAT)
         # Position
         e = ElementTree.SubElement(tp, 'Position')
         l = ElementTree.SubElement(e, 'LatitudeDegrees')
@@ -52,8 +52,10 @@ def createTcx(basename):
         l = ElementTree.SubElement(e, 'LongitudeDegrees')
         l.text = str(gpx.items()[1][1])
         # Distance Meter
+        # 1/10 km/h to m/s and then for the amount of sec de inteal is.
+        distance += float(hrm_data[1]) * 100 / 60 / 60 * interval
         e = ElementTree.SubElement(tp, 'DistanceMeters')
-        e.text = str(float(hrm_data[1]) * 100.0 / 60.0 / 60.0)
+        e.text = str(distance)
         # Heart Rate
         e = ElementTree.SubElement(tp, 'HeartRateBpm', {'xsi:type': 'HeartRateInBeatsPerMinute_t'})
         v = ElementTree.SubElement(e, 'Value')
@@ -61,6 +63,7 @@ def createTcx(basename):
         if CADENSE:
             e = ElementTree.SubElement(tp, 'Cadence')
             e.text = str(hrm_data[2])
+        return distance
 
     # CreatTcx Function
     print "Creating TCX file for " + basename + ".gpx"
@@ -89,11 +92,20 @@ def createTcx(basename):
             astart_time = line[10:-2]  # Removing the .X part
         elif line.find('Length') > -1:
             duration = calcDuration(line[8:-1])
+        elif line.find('SMode') > -1 :
+            # This is the info over the different data in the hrm chain
+            # For now working only with cadence
+            if line[7:8] == '1':
+                CADENSE = True
+            else:
+                CADENSE = False
+        elif line.find('Interval') > -1:
+            interval = int(line[9:])
         line = hrmiter.next()
     # Finding the time offset of the zone
     time_offset = getTimeOffset()
     # Start timestamp
-    start_time = datetime.strftime(datetime.strptime(adate + 'T' + astart_time + 'Z', TIME_FORMAT) + time_offset, TIME_FORMAT)
+    start_time = datetime.strftime(datetime.strptime(adate + 'T' + astart_time + 'Z', TIME_FORMAT) - time_offset, TIME_FORMAT)
     print 'Start time: ' + str(start_time)
     # Creating a tcx
     tcx = ElementTree.Element("TrainingCenterDatabase",
@@ -107,11 +119,10 @@ def createTcx(basename):
     lap = ElementTree.SubElement(activity, 'Lap', {'StartTime': start_time})
 
     # @TODO add total distance calculation
-    lap_data = {'TotalTimeSeconds': duration, 'DistanceMeters': '0',
-                'Calories': '0', 'Intensity': 'Active',
-                'TriggerMethod': 'Manual'}
+    lap_data = {'TotalTimeSeconds': duration, 'Calories': '0',
+                 'Intensity': 'Active', 'TriggerMethod': 'Manual'}
     createElementSeries(lap, lap_data)
-
+    total_distance = ElementTree.SubElement(lap, 'DistanceMeters')
     track = ElementTree.SubElement(lap, 'Track')
     # Ready to create the points
     line = True
@@ -120,12 +131,15 @@ def createTcx(basename):
             line = hrmiter.next()
             gpx = gpx_points.next()
         except:
+            print sys.exc_info()[1]
             print 'Iterator issue, data finished?'
             line = False
             continue
         line = line.strip()  # Removing white spaces
-        hrm_data = line.split()  # HR Speed Cadance
-        createTcxEntry(gpx, hrm_data)
+        hrm_data = line.split()  # HR Speed [Cadance]
+        distance = createTcxEntry(gpx, hrm_data, distance)
+    # Updating total distance
+    total_distance.text = str(distance)
     # Finishing the tree
     author = ElementTree.SubElement(tcx, 'Author')
     author.set('xsi:type', "Application_t")
