@@ -34,8 +34,10 @@ def createElementSeries(parent, data):
 
 
 def createTcx(basename):
-    distance = 0.0 # Distance counter
+    # Distance counter
+    distance = 0.0
     # Creates a single tracking point
+
     def createTcxEntry(gpx, hrm_data, distance):
         data = list(gpx)
         # Creating a trackpoint
@@ -92,7 +94,7 @@ def createTcx(basename):
             astart_time = line[10:-2]  # Removing the .X part
         elif line.find('Length') > -1:
             duration = calcDuration(line[8:-1])
-        elif line.find('SMode') > -1 :
+        elif line.find('SMode') > -1:
             # This is the info over the different data in the hrm chain
             # For now working only with cadence
             if line[7:8] == '1':
@@ -118,7 +120,6 @@ def createTcx(basename):
     d.text = start_time
     lap = ElementTree.SubElement(activity, 'Lap', {'StartTime': start_time})
 
-    # @TODO add total distance calculation
     lap_data = {'TotalTimeSeconds': duration, 'Calories': '0',
                  'Intensity': 'Active', 'TriggerMethod': 'Manual'}
     createElementSeries(lap, lap_data)
